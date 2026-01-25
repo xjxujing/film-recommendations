@@ -1,0 +1,62 @@
+{
+  "name": "react-templete",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,scss,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,scss,json}\"",
+    "preview": "vite preview",
+    "lint:staged": "lint-staged",
+    "spell:check": "cspell lint --dot --gitignore --color --cache --show-suggestions \"(packages|apps)/**/*.@(html|js|cjs|mjs|ts|tsx|css|scss|md)\"",
+    "commit": "git-cz",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-git"
+    }
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@commitlint/config-conventional": "^19.5.0",
+    "@eslint/js": "9.39.1",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/node": "22.9.0",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "autoprefixer": "^10.4.23",
+    "commitizen": "^4.3.1",
+    "commitlint": "^19.5.0",
+    "cspell": "9.4.0",
+    "cz-git": "^1.12.0",
+    "eslint": "9.39.1",
+    "eslint-plugin-prettier": "5.5.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "0.4.24",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "fast-glob": "^3.3.3",
+    "globals": "16.5.0",
+    "husky": "^9.1.7",
+    "lightningcss": "^1.31.1",
+    "lint-staged": "16.2.7",
+    "postcss": "^8.5.6",
+    "prettier": "3.7.4",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "tailwindcss": "^4.1.18",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.48.0",
+    "vite": "^7.3.1"
+  }
+}

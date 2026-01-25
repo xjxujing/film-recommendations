@@ -1,0 +1,6 @@
+{
+  "*.{md,json}": ["prettier --cache --write --no-error-on-unmatched-pattern"],
+  "*.{css,less}": ["prettier --cache --write"],
+  "*.{js,jsx}": ["eslint --fix", "prettier --cache --write"],
+  "*.{ts,tsx}": ["eslint --fix", "prettier --cache --parser=typescript --write"]
+}
