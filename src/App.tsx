@@ -1,200 +1,312 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-// --- 类型定义 ---
-
-// 电影数据接口 (对应后端返回的数据结构)
-interface Movie {
-  id: number;
-  title: string;
-  poster: string;
-  rating: string;
-  isSeries: boolean;
-  aiSuggestion: string;
-}
-
-// 语言包接口
-interface LangConfig {
-  btnDefault: string;
-  btnLoading: string;
-  seriesTag: string;
-  langSwitch: string;
-  error: string;
-  footer: string;
-}
-
-// 支持的语言类型
-type SupportedLang = 'zh' | 'en';
-
-// --- 静态数据 ---
-
-const UI_TEXT: Record<SupportedLang, LangConfig> = {
-  zh: {
-    btnDefault: '获取推荐',
-    btnLoading: 'AI 分析中...',
-    seriesTag: '系列电影',
-    langSwitch: 'Switch to English',
-    error: '获取失败，请重试',
-    footer: '本产品使用 TMDB API，但未获得 TMDB 认证。',
-  },
-  en: {
-    btnDefault: 'Get Recommendations',
-    btnLoading: 'Analyzing...',
-    seriesTag: 'Collection',
-    langSwitch: '切换到中文',
-    error: 'Failed to fetch, please try again',
-    footer:
-      'This product uses the TMDB API but is not endorsed or certified by TMDB.',
-  },
-};
+import moviesData from '../data/movies.json';
+import AnimationWrapper from './components/AnimationWrapper';
+import { Card } from './components/Card';
+import { Movie } from './types';
+import { MovieChoice } from './types';
 
 function App() {
-  // --- 状态管理 (带泛型) ---
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [searched, setSearched] = useState<boolean>(false);
-  const [lang, setLang] = useState<SupportedLang>('zh');
+  const [direction, setDirection] = useState<string>('');
+  const [movies, setMovies] = useState<Movie[]>(moviesData);
+  const [choices, setChoices] = useState<MovieChoice[]>([]);
+  const [mbtiResult, setMbtiResult] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [currentId, setCurrentId] = useState<number>();
 
-  const text = UI_TEXT[lang];
+  const outOfFrame = useCallback(
+    (direction: string) => {
+      const currentMovie = movies[movies.length - 1];
+      if (!currentMovie) return;
 
-  // --- 逻辑处理 ---
+      const newChoice: MovieChoice = {
+        movieId: currentMovie.id,
+        direction: direction as 'left' | 'right' | 'up' | 'down',
+        timestamp: Date.now(),
+      };
 
-  const toggleLang = () => {
-    const newLang: SupportedLang = lang === 'zh' ? 'en' : 'zh';
-    setLang(newLang);
-    // 切换语言后，如果已有结果，自动刷新列表
-    if (searched) {
-      handleRecommend(newLang);
+      setChoices(prev => [...prev, newChoice]);
+      setMovies(prev => prev.filter(movie => movie.id !== currentMovie.id));
+    },
+    [movies]
+  );
+
+  useEffect(() => {
+    if (choices.length > 3 && !isAnalyzing && !hasAnalyzed) {
+      const analyzeMBTI = async () => {
+        setIsAnalyzing(true);
+        setError(null);
+        setMbtiResult('');
+
+        try {
+          const likedIds = choices
+            .filter(c => c.direction === 'right')
+            .map(c => Number(c.movieId))
+            .filter(id => !isNaN(id));
+
+          const dislikedIds = choices
+            .filter(c => c.direction === 'left')
+            .map(c => Number(c.movieId))
+            .filter(id => !isNaN(id));
+
+          console.log('📤 发送数据:', { likedIds, dislikedIds });
+
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              likedIds,
+              dislikedIds,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+
+          // ✅ 读取流式响应
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+
+          if (!reader) {
+            throw new Error('无法读取响应流');
+          }
+
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              console.log('✅ 流式传输完成');
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // handle SSE
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+
+                if (data === '[DONE]') {
+                  continue;
+                }
+
+                try {
+                  const parsed = JSON.parse(data);
+
+                  if (parsed.error) {
+                    throw new Error(parsed.error);
+                  }
+
+                  if (parsed.content) {
+                    // add content from stream
+                    setMbtiResult(prev => prev + parsed.content);
+                  }
+                } catch (e) {
+                  console.error('解析错误:', e);
+                }
+              }
+            }
+          }
+
+          setHasAnalyzed(true);
+        } catch (error) {
+          console.error('❌ 分析失败:', error);
+          setError(error instanceof Error ? error.message : '分析失败');
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+
+      analyzeMBTI();
     }
-  };
-
-  const handleRecommend = async (targetLang: SupportedLang = lang) => {
-    setLoading(true);
-    setSearched(true);
-    try {
-      const res = await fetch(`/api/recommend?lang=${targetLang}`);
-      if (!res.ok) {
-        throw new Error('API request failed');
-      }
-      const data: Movie[] = await res.json();
-      setMovies(data);
-    } catch (e) {
-      console.error(e);
-      alert(text.error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- 视图渲染 ---
+  }, [movies.length, choices.length, isAnalyzing, choices, hasAnalyzed]);
 
   return (
-    <div className="relative min-h-screen bg-gray-50 pb-10 font-sans text-gray-900">
-      {/* 1. Language Switcher */}
-      <button
-        onClick={toggleLang}
-        className="absolute top-4 right-4 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:border-blue-600 hover:text-blue-600"
-      >
-        {text.langSwitch}
-      </button>
+    <div className="relative h-dvh w-screen overflow-hidden bg-[#e9e6e0]">
+      <div className="relative flex h-full w-full flex-col items-center justify-center p-8 lg:p-20">
+        {movies.length > 0 &&
+          movies.map(movie => (
+            <AnimationWrapper
+              key={movie.id}
+              className="absolute"
+              onSwipe={() => {}}
+              onCardLeftScreen={outOfFrame}
+              onSwipeRequirementFulfilled={dir => {
+                setDirection(dir);
+                setCurrentId(movie.id);
+              }}
+            >
+              <Card
+                movie={movie}
+                direction={currentId == movie.id ? direction : ''}
+              />
+            </AnimationWrapper>
+          ))}
 
-      {/* Main Content */}
-      <main className="mx-auto flex max-w-4xl flex-col items-center px-6 py-12">
-        {/* 2. Main Action Button */}
-        <div
-          className={`flex w-full justify-center transition-all duration-500 ease-in-out ${searched ? 'mt-0 mb-12' : 'mt-[30vh]'}`}
-        >
-          <button
-            onClick={() => handleRecommend(lang)}
-            disabled={loading}
-            className="rounded-xl bg-blue-600 px-10 py-4 text-lg font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:scale-105 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                {/* SVG Spinner */}
-                <svg
-                  className="h-5 w-5 animate-spin text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                {text.btnLoading}
-              </span>
-            ) : (
-              text.btnDefault
-            )}
-          </button>
-        </div>
+        <div className="z-20 w-full max-w-[90vw] text-center sm:max-w-2xl lg:max-w-4xl">
+          {(isAnalyzing || mbtiResult) && (
+            <div className="h-[70vh] overflow-hidden rounded-2xl border border-gray-100 bg-linear-to-br from-white to-gray-50 shadow-2xl sm:h-[500px] lg:h-[600px]">
+              <div className="h-2 bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
-        {/* 3. Movie Grid */}
-        {movies.length > 0 && (
-          <div className="animate-fade-in-up grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-            {movies.map(m => (
-              <div
-                key={m.id}
-                className="flex flex-col rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow duration-300 hover:shadow-xl"
-              >
-                {/* Card Top: Image & Info */}
-                <div className="mb-5 flex gap-5">
-                  <img
-                    src={m.poster}
-                    alt={m.title}
-                    className="h-36 w-24 shrink-0 rounded-lg bg-gray-200 object-cover shadow-md"
-                  />
-                  <div className="flex flex-col justify-center">
-                    <h3 className="mb-1 text-xl leading-tight font-bold text-gray-900">
-                      {m.title}
-                    </h3>
-                    <div className="text-lg font-bold text-blue-600">
-                      {m.rating}{' '}
-                      <span className="text-sm font-normal text-gray-400">
-                        / 10
-                      </span>
-                    </div>
-                    {m.isSeries && (
-                      <span className="mt-3 inline-block w-fit rounded bg-gray-900 px-2 py-1 text-[10px] font-bold tracking-wider text-white">
-                        {text.seriesTag}
-                      </span>
-                    )}
+              <div className="h-[calc(100%-0.5rem)] overflow-y-auto p-6 sm:p-8 lg:p-10">
+                <div className="mb-8 text-center">
+                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-purple-600 shadow-lg">
+                    <svg
+                      className="h-8 w-8 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
                   </div>
-                </div>
 
-                {/* Card Bottom: AI Suggestion */}
-                <div className="mt-auto border-t border-gray-100 pt-4">
-                  <p className="rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-600">
-                    {m.aiSuggestion}
+                  <h2 className="mb-2 bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
+                    {isAnalyzing ? '正在分析你的 MBTI' : '你的性格分析'}
+                  </h2>
+
+                  <p className="text-sm text-gray-500 sm:text-base">
+                    {isAnalyzing
+                      ? '基于你的电影偏好，AI 正在为你生成个性化报告...'
+                      : '基于你的电影品味生成'}
                   </p>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
 
-      {/* 4. Footer */}
-      <footer className="mt-10 w-full border-t border-gray-200 py-8 text-center">
-        <div className="flex flex-col items-center gap-2 opacity-60 transition-opacity hover:opacity-100">
-          <img
-            src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
-            alt="TMDB Logo"
-            className="w-24"
-          />
-          <p className="text-[10px] text-gray-500">{text.footer}</p>
+                <div className="relative">
+                  <div className="prose prose-sm sm:prose lg:prose-lg prose-headings:text-gray-800 prose-p:text-gray-600 prose-strong:text-gray-900 prose-ul:text-gray-600 prose-ol:text-gray-600 max-w-none">
+                    <Markdown remarkPlugins={[remarkGfm]}>
+                      {mbtiResult}
+                    </Markdown>
+                  </div>
+
+                  {isAnalyzing && (
+                    <div className="mt-8 flex flex-col items-center gap-4">
+                      <div className="flex gap-2">
+                        <div
+                          className="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+                          style={{ animationDelay: '0ms' }}
+                        ></div>
+                        <div
+                          className="h-2 w-2 animate-bounce rounded-full bg-purple-500"
+                          style={{ animationDelay: '150ms' }}
+                        ></div>
+                        <div
+                          className="h-2 w-2 animate-bounce rounded-full bg-pink-500"
+                          style={{ animationDelay: '300ms' }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-gray-500">AI 正在思考中...</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 底部按钮 */}
+                {!isAnalyzing && mbtiResult && (
+                  <div className="mt-8 border-t border-gray-200 pt-6">
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
+                        </svg>
+                        重新测试
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 错误提示 - 也美化一下 */}
+          {error && (
+            <div className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50 to-pink-50 p-6 text-center shadow-xl sm:p-8">
+              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                <svg
+                  className="h-8 w-8 text-red-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+
+              <h3 className="mb-2 text-xl font-bold text-red-900">
+                分析遇到问题
+              </h3>
+              <p className="mb-6 text-red-600">{error}</p>
+
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-pink-500 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                重新开始
+              </button>
+            </div>
+          )}
+
+          {/* 进度显示 - 也美化 */}
+          {movies.length > 0 && (
+            <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 sm:top-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-2 shadow-lg backdrop-blur-sm">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
+                <p className="text-sm font-medium text-gray-700">
+                  已选择 {choices.length} 部电影
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      </footer>
+      </div>
     </div>
   );
 }

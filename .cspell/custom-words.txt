@@ -1,2 +1,7 @@
 commitlint
+Doubao
 Giil
+MBTI
+openrouter
+TMDB
+xyrot

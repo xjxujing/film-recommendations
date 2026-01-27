@@ -1,6 +1,7 @@
-import fg from 'fast-glob'
+import fg from 'fast-glob';
 
-const getPackages = packagePath => fg.sync('*', { cwd: packagePath, onlyDirectories: true, deep: 2 })
+const getPackages = packagePath =>
+  fg.sync('*', { cwd: packagePath, onlyDirectories: true, deep: 2 });
 
 const scopes = [
   ...getPackages('packages'),
@@ -15,7 +16,7 @@ const scopes = [
   'dev',
   'deploy',
   'other',
-]
+];
 
 // Emoji
 /** @type {import('cz-git').UserConfig} */
@@ -38,7 +39,11 @@ export default {
     types: [
       { value: 'feat', name: 'feat:     ✨  A new feature', emoji: '✨ ' },
       { value: 'fix', name: 'fix:      🐛  A bug fix', emoji: '🐛 ' },
-      { value: 'docs', name: 'docs:     📝  Documentation only changes', emoji: '📝 ' },
+      {
+        value: 'docs',
+        name: 'docs:     📝  Documentation only changes',
+        emoji: '📝 ',
+      },
       {
         value: 'style',
         name: 'style:    💄  Changes that do not affect the meaning of the code',
@@ -74,17 +79,23 @@ export default {
         name: "chore:    🔨  Other changes that don't modify src or test files",
         emoji: '🔨 ',
       },
-      { value: 'revert', name: 'revert:   ⏪️  Reverts a previous commit', emoji: ':rewind:' },
+      {
+        value: 'revert',
+        name: 'revert:   ⏪️  Reverts a previous commit',
+        emoji: ':rewind:',
+      },
     ],
     useEmoji: true,
     confirmColorize: true,
     emojiAlign: 'center',
     questions: {
       scope: {
-        description: 'What is the scope of this change (e.g. component or file name)',
+        description:
+          'What is the scope of this change (e.g. component or file name)',
       },
       subject: {
-        description: 'Write a short, imperative tense description of the change',
+        description:
+          'Write a short, imperative tense description of the change',
       },
       body: {
         description: 'Provide a longer description of the change',
@@ -93,7 +104,8 @@ export default {
         description: 'Are there any breaking changes?',
       },
       breakingBody: {
-        description: 'A BREAKING CHANGE commit requires a body. Please enter a longer description of the commit itself',
+        description:
+          'A BREAKING CHANGE commit requires a body. Please enter a longer description of the commit itself',
       },
       breaking: {
         description: 'Describe the breaking changes',
@@ -102,11 +114,12 @@ export default {
         description: 'Does this change affect any open issues?',
       },
       issuesBody: {
-        description: 'If issues are closed, the commit requires a body. Please enter a longer description of the commit itself',
+        description:
+          'If issues are closed, the commit requires a body. Please enter a longer description of the commit itself',
       },
       issues: {
         description: 'Add issue references (e.g. "fix #123", "re #123".)',
       },
     },
   },
-}
+};
