@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
+  "packageManager": "pnpm@10.20.0",
   "main": "index.js",
   "scripts": {
     "dev": "vite --port ${PORT:-5173}",
