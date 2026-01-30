@@ -6,23 +6,13 @@ import { readFileSync } from 'fs';
 import OpenAI from 'openai';
 import { join } from 'path';
 
-// 使用 fs 读取以确保在不同 Vercel 运行时环境下的稳定性
+import { Movie, MovieSelection } from './types';
+
 const moviesData = JSON.parse(
   readFileSync(join(process.cwd(), 'data/movies.json'), 'utf8')
 );
 
-console.log('✅ API Serverless Function 载入完成');
-
-export interface MovieSelection {
-  likedIds: number[];
-  dislikedIds: number[];
-}
-
-export interface Movie {
-  id: number;
-  title: string;
-  genres: string[];
-}
+console.log('✅ API Serverless Function Load Successfully');
 
 const app = express();
 app.use(express.json());
@@ -132,10 +122,3 @@ app.post(
 );
 
 export default app;
-
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  const PORT = 3001;
-  app.listen(PORT, () =>
-    console.log(`🚀 本地独立服务器启动: http://localhost:${PORT}`)
-  );
-}

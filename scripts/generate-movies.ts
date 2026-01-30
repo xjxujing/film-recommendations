@@ -8,7 +8,6 @@ import { TMDBMovie } from './types';
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
-// TMDB 类型 ID 映射表（中文）
 const GENRE_MAP: Record<number, string> = {
   28: '动作',
   12: '冒险',
@@ -60,12 +59,10 @@ async function generateMoviesData() {
         tmdbId: movie.id,
       }));
 
-    // 确保目录存在
     if (!fs.existsSync('src/data')) {
       fs.mkdirSync('src/data', { recursive: true });
     }
 
-    // 写入文件
     fs.writeFileSync(
       'data/movies.json',
       JSON.stringify(movies, null, 2),
