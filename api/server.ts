@@ -2,9 +2,16 @@ import 'dotenv/config';
 
 import cors from 'cors';
 import express, { Request, Response } from 'express';
+import { readFileSync } from 'fs';
 import OpenAI from 'openai';
+import { join } from 'path';
 
-import moviesData from '../data/movies.json';
+// 使用 fs 读取以确保在不同 Vercel 运行时环境下的稳定性
+const moviesData = JSON.parse(
+  readFileSync(join(process.cwd(), 'data/movies.json'), 'utf8')
+);
+
+console.log('✅ API Serverless Function 载入完成');
 
 export interface MovieSelection {
   likedIds: number[];
@@ -22,7 +29,17 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        origin.startsWith('http://localhost') ||
+        origin.endsWith('.vercel.app')
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );
@@ -33,6 +50,10 @@ const openai = new OpenAI({
 });
 
 const MOVIE_POOL: Movie[] = [...moviesData];
+
+app.get('/api/liveness', (_req, res) => {
+  res.json({ liveness: true });
+});
 
 app.post(
   '/api/analyze',
@@ -110,4 +131,11 @@ app.post(
   }
 );
 
-app.listen(3001, () => console.log('🚀 Server is running on port 3001'));
+export default app;
+
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  const PORT = 3001;
+  app.listen(PORT, () =>
+    console.log(`🚀 本地独立服务器启动: http://localhost:${PORT}`)
+  );
+}
