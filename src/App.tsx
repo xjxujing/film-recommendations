@@ -1,22 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import moviesData from '../data/movies.json';
+import moviesEn from '../data/movies_en.json';
+import moviesZh from '../data/movies_zh.json';
 import AnimationWrapper from './components/AnimationWrapper';
 import { Card } from './components/Card';
 import { Movie } from './types';
 import { MovieChoice } from './types';
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [direction, setDirection] = useState<string>('');
-  const [movies, setMovies] = useState<Movie[]>(moviesData);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [choices, setChoices] = useState<MovieChoice[]>([]);
   const [mbtiResult, setMbtiResult] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [currentId, setCurrentId] = useState<number>();
+
+  // 同步语言到电影列表
+  useEffect(() => {
+    const isZh = i18n.language.startsWith('zh');
+    const fullPool = isZh ? moviesZh : moviesEn;
+    // 过滤掉已经选择的电影，并保持当前未选择电影的同步
+    setMovies(prev => {
+      // 如果还没有 choices，直接返回完整池
+      if (choices.length === 0) return fullPool as Movie[];
+
+      // 找出还没选的 ID
+      const choiceIds = new Set(choices.map(c => c.movieId));
+      return (fullPool as Movie[]).filter(m => !choiceIds.has(m.id));
+    });
+  }, [i18n.language, choices]); // 监听语言变化
 
   const outOfFrame = useCallback(
     (direction: string) => {
@@ -63,6 +81,7 @@ function App() {
             body: JSON.stringify({
               likedIds,
               dislikedIds,
+              lang: i18n.language.startsWith('zh') ? 'zh' : 'en',
             }),
           });
 
@@ -132,10 +151,40 @@ function App() {
 
       analyzeMBTI();
     }
-  }, [movies.length, choices.length, isAnalyzing, choices, hasAnalyzed]);
+  }, [
+    movies.length,
+    choices.length,
+    isAnalyzing,
+    choices,
+    hasAnalyzed,
+    i18n.language,
+  ]);
 
   return (
     <div className="relative h-dvh w-screen overflow-hidden bg-[#e9e6e0]">
+      <div className="absolute top-4 right-4 z-50 flex gap-2 sm:top-8 sm:right-8">
+        <button
+          onClick={() => i18n.changeLanguage('zh')}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+            i18n.language.startsWith('zh')
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-white/80 text-gray-600 hover:bg-white'
+          }`}
+        >
+          中
+        </button>
+        <button
+          onClick={() => i18n.changeLanguage('en')}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+            i18n.language.startsWith('en')
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-white/80 text-gray-600 hover:bg-white'
+          }`}
+        >
+          EN
+        </button>
+      </div>
+
       <div className="relative flex h-full w-full flex-col items-center justify-center p-8 lg:p-20">
         {movies.length > 0 &&
           movies.map(movie => (
@@ -156,7 +205,7 @@ function App() {
             </AnimationWrapper>
           ))}
 
-        <div className="z-20 w-full max-w-[90vw] text-center sm:max-w-2xl lg:max-w-4xl">
+        <div className="z-20 w-full max-w-[90vw] sm:max-w-2xl lg:max-w-4xl">
           {(isAnalyzing || mbtiResult) && (
             <div className="h-[70vh] overflow-hidden rounded-2xl border border-gray-100 bg-linear-to-br from-white to-gray-50 shadow-2xl sm:h-[500px] lg:h-[600px]">
               <div className="h-2 bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"></div>
@@ -180,13 +229,15 @@ function App() {
                   </div>
 
                   <h2 className="mb-2 bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
-                    {isAnalyzing ? '正在分析你的 MBTI' : '你的性格分析'}
+                    {isAnalyzing
+                      ? t('analyzing_mbti')
+                      : t('your_mbti_analysis')}
                   </h2>
 
                   <p className="text-sm text-gray-500 sm:text-base">
                     {isAnalyzing
-                      ? '基于你的电影偏好，AI 正在为你生成个性化报告...'
-                      : '基于你的电影品味生成'}
+                      ? t('analyzing_description')
+                      : t('generated_description')}
                   </p>
                 </div>
 
@@ -213,7 +264,9 @@ function App() {
                           style={{ animationDelay: '300ms' }}
                         ></div>
                       </div>
-                      <p className="text-sm text-gray-500">AI 正在思考中...</p>
+                      <p className="text-sm text-gray-500">
+                        {t('ai_thinking')}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -239,7 +292,7 @@ function App() {
                             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                           />
                         </svg>
-                        重新测试
+                        {t('retake_test')}
                       </span>
                     </button>
                   </div>
@@ -268,7 +321,7 @@ function App() {
               </div>
 
               <h3 className="mb-2 text-xl font-bold text-red-900">
-                分析遇到问题
+                {t('analysis_error')}
               </h3>
               <p className="mb-6 text-red-600">{error}</p>
 
@@ -289,7 +342,7 @@ function App() {
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
-                重新开始
+                {t('restart')}
               </button>
             </div>
           )}
@@ -300,7 +353,7 @@ function App() {
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-2 shadow-lg backdrop-blur-sm">
                 <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
                 <p className="text-sm font-medium text-gray-700">
-                  已选择 {choices.length} 部电影
+                  {t('movies_selected', { count: choices.length })}
                 </p>
               </div>
             </div>

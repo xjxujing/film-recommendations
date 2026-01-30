@@ -3,12 +3,12 @@ import 'dotenv/config';
 
 import fs from 'fs';
 
-import { Movie } from '../api/server';
+import { Movie } from '../src/types';
 import { TMDBMovie } from './types';
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
-const GENRE_MAP: Record<number, string> = {
+const GENRE_MAP_ZH: Record<number, string> = {
   28: '动作',
   12: '冒险',
   16: '动画',
@@ -30,47 +30,102 @@ const GENRE_MAP: Record<number, string> = {
   37: '西部',
 };
 
-function getGenreName(genreId: number): string {
-  return GENRE_MAP[genreId] || '其他';
+const GENRE_MAP_EN: Record<number, string> = {
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Science Fiction',
+  10770: 'TV Movie',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
+};
+
+function getGenreNames(genreIds: number[], lang: 'zh' | 'en'): string[] {
+  const map = lang === 'zh' ? GENRE_MAP_ZH : GENRE_MAP_EN;
+  return genreIds
+    .slice(0, 2)
+    .map(id => map[id] || (lang === 'zh' ? '其他' : 'Other'));
+}
+
+async function fetchMovies(lang: string) {
+  const response = await fetch(
+    `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_API_KEY}&language=${lang}&page=1`
+  );
+
+  if (!response.ok) {
+    throw new Error(`API 请求失败 (${lang}): ${response.status}`);
+  }
+
+  return await response.json();
 }
 
 async function generateMoviesData() {
   try {
-    // 获取热门电影
-    const response = await fetch(
-      `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_API_KEY}&language=zh-CN&page=1`
-    );
+    console.log('⏳ 正在获取电影数据...');
+    const dataZh = await fetchMovies('zh-CN');
+    const dataEn = await fetchMovies('en-US');
 
-    if (!response.ok) {
-      throw new Error(`API 请求失败: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const movies: Movie[] = data.results
+    const moviesZh: Movie[] = dataZh.results
       .slice(0, 50)
       .map((movie: TMDBMovie) => ({
         id: movie.id,
         title: movie.title,
-        genres: movie.genre_ids
-          .slice(0, 2)
-          .map((id: number) => getGenreName(id)),
+        genres: getGenreNames(movie.genre_ids, 'zh'),
         posterUrl: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-        tmdbId: movie.id,
       }));
 
-    if (!fs.existsSync('src/data')) {
-      fs.mkdirSync('src/data', { recursive: true });
+    // For English, we want to match the IDs from the Chinese list to ensure consistency
+    const zhIds = new Set(moviesZh.map(m => m.id));
+    const moviesEn: Movie[] = dataEn.results
+      .filter((movie: TMDBMovie) => zhIds.has(movie.id))
+      .map((movie: TMDBMovie) => ({
+        id: movie.id,
+        title: movie.title,
+        genres: getGenreNames(movie.genre_ids, 'en'),
+        posterUrl: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+      }));
+
+    // ensure order is the same
+    const moviesEnOrdered = moviesZh
+      .map(mZh => moviesEn.find(mEn => mEn.id === mZh.id))
+      .filter(Boolean) as Movie[];
+
+    if (!fs.existsSync('data')) {
+      fs.mkdirSync('data', { recursive: true });
     }
 
     fs.writeFileSync(
-      'data/movies.json',
-      JSON.stringify(movies, null, 2),
+      'data/movies_zh.json',
+      JSON.stringify(moviesZh, null, 2),
+      'utf-8'
+    );
+    fs.writeFileSync(
+      'data/movies_en.json',
+      JSON.stringify(moviesEnOrdered, null, 2),
       'utf-8'
     );
 
-    console.log('✅ 成功生成', movies.length, '个电影数据');
-    console.log('📁 文件位置: src/data/movies.json');
+    // Keep data/movies.json as a fallback (pointing to zh)
+    fs.writeFileSync(
+      'data/movies.json',
+      JSON.stringify(moviesZh, null, 2),
+      'utf-8'
+    );
+
+    console.log('✅ 成功生成电影数据');
+    console.log('📁 文件位置: data/movies_zh.json, data/movies_en.json');
   } catch (error) {
     console.error('❌ 生成失败:', error);
   }

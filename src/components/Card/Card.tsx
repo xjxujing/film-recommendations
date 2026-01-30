@@ -1,34 +1,37 @@
 import { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { CardProps } from './types';
 
-const getDirectionText = (direction?: string) => {
-  switch (direction) {
-    case 'right':
-      return '喜欢';
-    case 'left':
-      return '不喜欢';
-    case 'down':
-      return '没看过';
-    default:
-      return '';
-  }
-};
-
-const getDirectionStyle = (direction?: string) => {
-  switch (direction) {
-    case 'right':
-      return 'bg-green-500/80 text-white';
-    case 'left':
-      return 'bg-red-500/80 text-white';
-    case 'down':
-      return 'bg-yellow-500/80 text-white';
-    default:
-      return '';
-  }
-};
-
 export const Card: FC<CardProps> = ({ movie, direction }) => {
+  const { t } = useTranslation();
+
+  const getDirectionText = (direction?: string) => {
+    switch (direction) {
+      case 'right':
+        return t('like');
+      case 'left':
+        return t('dislike');
+      case 'down':
+        return t('not_seen');
+      default:
+        return '';
+    }
+  };
+
+  const getDirectionStyle = (direction?: string) => {
+    switch (direction) {
+      case 'right':
+        return 'bg-green-500/80 text-white';
+      case 'left':
+        return 'bg-red-500/80 text-white';
+      case 'down':
+        return 'bg-yellow-500/80 text-white';
+      default:
+        return '';
+    }
+  };
+
   const directionText = getDirectionText(direction);
   const directionStyle = getDirectionStyle(direction);
 

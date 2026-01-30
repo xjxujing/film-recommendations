@@ -1,0 +1,14 @@
+{
+  "analyzing_mbti": "Analyzing Your MBTI",
+  "your_mbti_analysis": "Your Personality Analysis",
+  "analyzing_description": "Based on your movie preferences, AI is generating a personalized report for you...",
+  "generated_description": "Generated based on your movie taste",
+  "ai_thinking": "AI is thinking...",
+  "retake_test": "Retake Test",
+  "analysis_error": "Analysis Failed",
+  "restart": "Restart",
+  "movies_selected": "Selected {{count}} movies",
+  "like": "Like",
+  "dislike": "Dislike",
+  "not_seen": "Not seen"
+}

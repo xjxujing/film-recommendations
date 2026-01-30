@@ -1,0 +1,14 @@
+{
+  "analyzing_mbti": "正在分析你的 MBTI",
+  "your_mbti_analysis": "你的性格分析",
+  "analyzing_description": "基于你的电影偏好，AI 正在为你生成个性化报告...",
+  "generated_description": "基于你的电影品味生成",
+  "ai_thinking": "AI 正在思考中...",
+  "retake_test": "重新测试",
+  "analysis_error": "分析遇到问题",
+  "restart": "重新开始",
+  "movies_selected": "已选择 {{count}} 部电影",
+  "like": "喜欢",
+  "dislike": "不喜欢",
+  "not_seen": "没看过"
+}
