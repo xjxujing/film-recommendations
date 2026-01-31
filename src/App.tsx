@@ -21,20 +21,16 @@ function App() {
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [currentId, setCurrentId] = useState<number>();
 
-  // 同步语言到电影列表
   useEffect(() => {
     const isZh = i18n.language.startsWith('zh');
     const fullPool = isZh ? moviesZh : moviesEn;
-    // 过滤掉已经选择的电影，并保持当前未选择电影的同步
-    setMovies(prev => {
-      // 如果还没有 choices，直接返回完整池
+    setMovies(() => {
       if (choices.length === 0) return fullPool as Movie[];
 
-      // 找出还没选的 ID
       const choiceIds = new Set(choices.map(c => c.movieId));
       return (fullPool as Movie[]).filter(m => !choiceIds.has(m.id));
     });
-  }, [i18n.language, choices]); // 监听语言变化
+  }, [i18n.language, choices]);
 
   const outOfFrame = useCallback(
     (direction: string) => {
@@ -207,14 +203,12 @@ function App() {
 
         <div className="z-20 w-full max-w-[90vw] sm:max-w-2xl lg:max-w-4xl">
           {(isAnalyzing || mbtiResult) && (
-            <div className="h-[70vh] overflow-hidden rounded-2xl border border-gray-100 bg-linear-to-br from-white to-gray-50 shadow-2xl sm:h-[500px] lg:h-[600px]">
-              <div className="h-2 bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"></div>
-
-              <div className="h-[calc(100%-0.5rem)] overflow-y-auto p-6 sm:p-8 lg:p-10">
-                <div className="mb-8 text-center">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-purple-600 shadow-lg">
+            <div className="h-[75vh] overflow-hidden rounded-[2.5rem] border border-[#e8dcc4] bg-[#fdf6e9] shadow-2xl sm:h-[600px] lg:h-[700px]">
+              <div className="h-[calc(100%-0.5rem)] overflow-y-auto p-8 sm:p-12 lg:p-16">
+                <div className="mb-10 text-center">
+                  <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-[#a08475] shadow-inner">
                     <svg
-                      className="h-8 w-8 text-white"
+                      className="h-10 w-10 text-[#fdf6e9]"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -222,19 +216,19 @@ function App() {
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
+                        strokeWidth={1.5}
                         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
                       />
                     </svg>
                   </div>
 
-                  <h2 className="mb-2 bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
+                  <h2 className="mb-4 text-4xl font-bold tracking-tight text-[#5c4033] sm:text-5xl">
                     {isAnalyzing
                       ? t('analyzing_mbti')
                       : t('your_mbti_analysis')}
                   </h2>
 
-                  <p className="text-sm text-gray-500 sm:text-base">
+                  <p className="text-sm font-medium tracking-widest text-[#a08475] uppercase sm:text-base">
                     {isAnalyzing
                       ? t('analyzing_description')
                       : t('generated_description')}
@@ -242,29 +236,29 @@ function App() {
                 </div>
 
                 <div className="relative">
-                  <div className="prose prose-sm sm:prose lg:prose-lg prose-headings:text-gray-800 prose-p:text-gray-600 prose-strong:text-gray-900 prose-ul:text-gray-600 prose-ol:text-gray-600 max-w-none">
+                  <div className="prose prose-sm prose-p:text-center prose-headings:text-center prose-ul:list-none prose-ul:p-0 prose-li:p-0 sm:prose-base lg:prose-lg prose-headings:text-[#c5a37e] prose-p:text-[#7d6b5d] prose-strong:text-[#5c4033] prose-li:text-[#7d6b5d] max-w-none">
                     <Markdown remarkPlugins={[remarkGfm]}>
                       {mbtiResult}
                     </Markdown>
                   </div>
 
                   {isAnalyzing && (
-                    <div className="mt-8 flex flex-col items-center gap-4">
-                      <div className="flex gap-2">
+                    <div className="mt-12 flex flex-col items-center gap-6">
+                      <div className="flex gap-3">
                         <div
-                          className="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+                          className="h-3 w-3 animate-bounce rounded-full bg-[#c5a37e]"
                           style={{ animationDelay: '0ms' }}
                         ></div>
                         <div
-                          className="h-2 w-2 animate-bounce rounded-full bg-purple-500"
+                          className="h-3 w-3 animate-bounce rounded-full bg-[#a08475]"
                           style={{ animationDelay: '150ms' }}
                         ></div>
                         <div
-                          className="h-2 w-2 animate-bounce rounded-full bg-pink-500"
+                          className="h-3 w-3 animate-bounce rounded-full bg-[#7d6b5d]"
                           style={{ animationDelay: '300ms' }}
                         ></div>
                       </div>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm font-medium tracking-wide text-[#a08475]">
                         {t('ai_thinking')}
                       </p>
                     </div>
@@ -273,14 +267,14 @@ function App() {
 
                 {/* 底部按钮 */}
                 {!isAnalyzing && mbtiResult && (
-                  <div className="mt-8 border-t border-gray-200 pt-6">
+                  <div className="mt-12 flex justify-center">
                     <button
                       onClick={() => window.location.reload()}
-                      className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+                      className="group relative flex w-3/4 items-center justify-center overflow-hidden rounded-full bg-[#f1e4d1] px-8 py-4 transition-all duration-300 hover:bg-[#e8dcc4] hover:shadow-lg active:scale-95"
                     >
-                      <span className="flex items-center justify-center gap-2">
+                      <span className="relative flex items-center gap-3 text-lg font-bold text-[#5c4033]">
                         <svg
-                          className="h-5 w-5"
+                          className="h-6 w-6 transition-transform group-hover:rotate-180"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"

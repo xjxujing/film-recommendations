@@ -31,7 +31,7 @@ export default [
       'prettier/prettier': 'error',
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
-      '@typescript-eslint/no-unused-vars': 'off', // Optional: keeping specific preference from previous config
+      '@typescript-eslint/no-unused-vars': 'error',
     },
   },
 ];
